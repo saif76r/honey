@@ -1,0 +1,6 @@
+{
+  "name": "Amour - Neumorphic E2EE Romantic Chat",
+  "description": "End-to-end encrypted romantic chat app with soft pastel neumorphic design, real-time media sharing, voice love notes, sealed letters, and push notifications.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --neu-bg: #F8EEF0;
+    --neu-surface: #F8EEF0;
+    --neu-card: #F8EEF0;
+    --neu-shadow-dark: #E2D3D6;
+    --neu-shadow-light: #FFFFFF;
+    --neu-accent: #DF6D85;
+    --neu-accent-light: #FCE7EC;
+    --neu-text-primary: #3D2D31;
+    --neu-text-secondary: #7E6C71;
+    --neu-accent-rgb: 223, 109, 133;
+  }
+
+  body {
+    background-color: var(--neu-bg);
+    color: var(--neu-text-primary);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    touch-action: manipulation;
+  }
+}
+
+/* Light, Pillowy Soft Neumorphism */
+.neu-flat {
+  background-color: var(--neu-surface);
+  box-shadow: 4px 4px 10px var(--neu-shadow-dark), -4px -4px 10px var(--neu-shadow-light);
+}
+
+.neu-flat-sm {
+  background-color: var(--neu-surface);
+  box-shadow: 2px 2px 6px var(--neu-shadow-dark), -2px -2px 6px var(--neu-shadow-light);
+}
+
+.neu-pressed {
+  background-color: var(--neu-surface);
+  box-shadow: inset 2px 2px 4px var(--neu-shadow-dark), inset -2px -2px 4px var(--neu-shadow-light);
+}
+
+.neu-button {
+  background-color: var(--neu-surface);
+  box-shadow: 3px 3px 7px var(--neu-shadow-dark), -3px -3px 7px var(--neu-shadow-light);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  touch-action: manipulation;
+}
+
+.neu-button:active,
+.neu-button-active {
+  box-shadow: inset 2px 2px 4px var(--neu-shadow-dark), inset -2px -2px 4px var(--neu-shadow-light);
+  transform: scale(0.98);
+}
+
+/* Ultra-light, smooth message bubbles */
+.neu-bubble-sent {
+  background: linear-gradient(135deg, var(--neu-accent-light) 0%, rgba(var(--neu-accent-rgb), 0.16) 100%);
+  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.04), -2px -2px 6px var(--neu-shadow-light);
+  border: 1px solid rgba(var(--neu-accent-rgb), 0.12);
+}
+
+.neu-bubble-received {
+  background-color: var(--neu-surface);
+  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.03), -2px -2px 6px var(--neu-shadow-light);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+/* Smooth Touch Scrolling */
+.smooth-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+}
+
+/* Minimal delicate scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--neu-shadow-dark);
+  border-radius: 9999px;
+}
+
+/* Audio waveform animation */
+@keyframes pulseWave {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+.animate-wave-1 { animation: pulseWave 1s ease-in-out infinite 0.1s; }
+.animate-wave-2 { animation: pulseWave 1s ease-in-out infinite 0.25s; }
+.animate-wave-3 { animation: pulseWave 1s ease-in-out infinite 0.4s; }
+.animate-wave-4 { animation: pulseWave 1s ease-in-out infinite 0.55s; }
+.animate-wave-5 { animation: pulseWave 1s ease-in-out infinite 0.7s; }

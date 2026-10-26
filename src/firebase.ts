@@ -3,13 +3,13 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyB-dhT3DMwBLaugEWcTXEanxH8BlgTSkro",
-  authDomain: "honey-a1f9f.firebaseapp.com",
-  projectId: "honey-a1f9f",
-  storageBucket: "honey-a1f9f.firebasestorage.app",
-  messagingSenderId: "645016226425",
-  appId: "1:645016226425:web:04d6ec7c9f6b1fa5f4e2a8",
-  measurementId: "G-NN0KKYYZ01"
+  apiKey: (import.meta.env.VITE_FIREBASE_API_KEY as string) || "AIzaSyB-dhT3DMwBLaugEWcTXEanxH8BlgTSkro",
+  authDomain: (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string) || "honey-a1f9f.firebaseapp.com",
+  projectId: (import.meta.env.VITE_FIREBASE_PROJECT_ID as string) || "honey-a1f9f",
+  storageBucket: (import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string) || "honey-a1f9f.firebasestorage.app",
+  messagingSenderId: (import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string) || "645016226425",
+  appId: (import.meta.env.VITE_FIREBASE_APP_ID as string) || "1:645016226425:web:04d6ec7c9f6b1fa5f4e2a8",
+  measurementId: (import.meta.env.VITE_FIREBASE_MEASUREMENT_ID as string) || "G-NN0KKYYZ01"
 };
 
 // Initialize Firebase App

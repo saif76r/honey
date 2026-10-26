@@ -15,6 +15,9 @@ import { AuthUser, ThemePreset } from '../types/chat';
 import { THEMES } from '../utils/themes';
 import { playSentChime } from '../utils/sound';
 import { syncUserToFirestore } from '../services/firestoreService';
+import alexAvatar from '../assets/images/alex_avatar_1793017722479.jpg';
+import sophiaAvatar from '../assets/images/sophia_avatar_1793017722307.jpg';
+import sunsetMemory from '../assets/images/romantic_sunset_memory_1793017722778.jpg';
 
 interface AuthPageProps {
   onLoginSuccess: (user: AuthUser) => void;
@@ -28,9 +31,9 @@ interface StoredAccount {
 }
 
 const PRESET_AVATARS = [
-  { id: 'av_1', url: '/src/assets/images/alex_avatar_1793017722479.jpg', label: 'Gentle Rose' },
-  { id: 'av_2', url: '/src/assets/images/sophia_avatar_1793017722307.jpg', label: 'Sunlight Smile' },
-  { id: 'av_3', url: '/src/assets/images/romantic_sunset_memory_1793017722778.jpg', label: 'Golden Dusk' },
+  { id: 'av_1', url: alexAvatar, label: 'Gentle Rose' },
+  { id: 'av_2', url: sophiaAvatar, label: 'Sunlight Smile' },
+  { id: 'av_3', url: sunsetMemory, label: 'Golden Dusk' },
 ];
 
 function getStoredAccounts(): StoredAccount[] {
@@ -144,7 +147,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         petName: regPetName.trim() || 'My Soulmate 💕',
         avatar: selectedAvatar,
         keyFingerprint: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2),
-        partnerCode: 'AMOUR-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
+        partnerCode: 'HONEY-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
         createdAt: Date.now(),
       };
 
@@ -183,7 +186,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             <Heart className="w-7 h-7 fill-current animate-pulse" />
           </div>
           <h1 className="text-2xl font-bold font-serif text-[var(--neu-text-primary)] tracking-tight">
-            Amour
+            HoneyChat
           </h1>
           <p className="text-xs text-[var(--neu-text-secondary)] mt-1 flex items-center justify-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5 text-[var(--neu-accent)]" />

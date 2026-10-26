@@ -14,6 +14,7 @@ import {
 import { AuthUser, Contact } from '../types/chat';
 import { playSentChime } from '../utils/sound';
 import { findPartnerByCode } from '../services/firestoreService';
+import defaultAvatar from '../assets/images/sophia_avatar_1793017722307.jpg';
 
 interface AddPartnerModalProps {
   currentUser: AuthUser;
@@ -68,7 +69,7 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
     );
 
   const handleCopyMyCode = () => {
-    const code = currentUser.partnerCode || `AMOUR-${currentUser.id.slice(-6).toUpperCase()}`;
+    const code = currentUser.partnerCode || `HONEY-${currentUser.id.slice(-6).toUpperCase()}`;
     navigator.clipboard?.writeText(code);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2500);
@@ -80,7 +81,7 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
       id: partnerUser.id,
       name: partnerUser.name,
       nickname: nickname.trim() || partnerUser.petName || partnerUser.name,
-      avatar: partnerUser.avatar || '/src/assets/images/sophia_avatar_1793017722307.jpg',
+      avatar: partnerUser.avatar || defaultAvatar,
       isOnline: true,
       lastSeen: 'Active now',
       statusMessage: 'Connected in private sanctuary 💕',
@@ -155,7 +156,7 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
           id: firestorePair.userId,
           name: firestorePair.userName,
           nickname: nickname.trim() || firestorePair.petName || firestorePair.userName,
-          avatar: firestorePair.userAvatar || '/src/assets/images/sophia_avatar_1793017722307.jpg',
+          avatar: firestorePair.userAvatar || defaultAvatar,
           isOnline: true,
           lastSeen: 'Active on Firebase',
           statusMessage: 'Connected in private sanctuary 💕',
@@ -183,7 +184,7 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
       id: 'partner_' + query.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase(),
       name: query.includes('@') ? query.split('@')[0] : query,
       nickname: nickname.trim() || (query.includes('@') ? query.split('@')[0] : query),
-      avatar: '/src/assets/images/sophia_avatar_1793017722307.jpg',
+      avatar: defaultAvatar,
       isOnline: true,
       lastSeen: 'Active now',
       statusMessage: 'Encrypted partner connected 💍',
@@ -236,7 +237,7 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
           </span>
           <div className="flex items-center justify-between gap-2">
             <code className="text-sm font-mono font-bold text-[var(--neu-accent)] tracking-wider">
-              {currentUser.partnerCode || `AMOUR-${currentUser.id.slice(-6).toUpperCase()}`}
+              {currentUser.partnerCode || `HONEY-${currentUser.id.slice(-6).toUpperCase()}`}
             </code>
             <button
               onClick={handleCopyMyCode}
@@ -280,7 +281,7 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
             <div className="relative">
               <input
                 type="text"
-                placeholder="e.g. AMOUR-7K9ZP or partner@love.com"
+                placeholder="e.g. HONEY-7K9ZP or partner@love.com"
                 value={partnerQuery}
                 onChange={(e) => setPartnerQuery(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl neu-pressed text-xs text-[var(--neu-text-primary)] placeholder-[var(--neu-text-secondary)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--neu-accent)]"

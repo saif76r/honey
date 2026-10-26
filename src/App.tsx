@@ -55,6 +55,7 @@ import {
   subscribeToPartnerTyping,
   syncUserToFirestore,
 } from './services/firestoreService';
+import defaultAvatar from './assets/images/sophia_avatar_1793017722307.jpg';
 
 export default function App() {
   // Application Settings
@@ -417,7 +418,7 @@ export default function App() {
   const showPushNotification = (sender: string, text: string) => {
     setPushToast({
       senderName: sender,
-      senderAvatar: activeContact?.avatar || '/src/assets/images/sophia_avatar_1793017722307.jpg',
+      senderAvatar: activeContact?.avatar || defaultAvatar,
       previewText: text || 'Sent an encrypted love message',
     });
     setTimeout(() => {
@@ -426,7 +427,7 @@ export default function App() {
 
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
-        new Notification(`Amour 💕 - ${sender}`, {
+        new Notification(`HoneyChat 💕 - ${sender}`, {
           body: text || 'Sent you an encrypted love message',
           icon: activeContact?.avatar,
         });
@@ -441,7 +442,7 @@ export default function App() {
       const res = await Notification.requestPermission();
       if (res === 'granted') {
         setSettings((prev) => ({ ...prev, pushNotificationsEnabled: true }));
-        new Notification('Amour Notifications Active', {
+        new Notification('HoneyChat Notifications Active', {
           body: 'You will receive private notifications for incoming partner messages 💕',
         });
       }
@@ -715,7 +716,7 @@ export default function App() {
 
   const handleCopyCode = () => {
     if (!currentUser) return;
-    const code = currentUser.partnerCode || `AMOUR-${currentUser.id.slice(-6).toUpperCase()}`;
+    const code = currentUser.partnerCode || `HONEY-${currentUser.id.slice(-6).toUpperCase()}`;
     navigator.clipboard?.writeText(code);
     setCopiedMyCode(true);
     setTimeout(() => setCopiedMyCode(false), 2000);
@@ -784,7 +785,7 @@ export default function App() {
                 </div>
                 <div>
                   <h1 className="text-base font-bold font-serif tracking-tight text-[var(--neu-text-primary)]">
-                    Amour Chat
+                    HoneyChat
                   </h1>
                   <span className="text-[11px] text-[var(--neu-accent)] font-semibold flex items-center gap-1">
                     <ShieldCheck className="w-3 h-3" />
@@ -838,7 +839,7 @@ export default function App() {
                   My Pairing Code
                 </span>
                 <code className="text-xs font-mono font-bold text-[var(--neu-accent)] truncate block">
-                  {currentUser.partnerCode || `AMOUR-${currentUser.id.slice(-6).toUpperCase()}`}
+                  {currentUser.partnerCode || `HONEY-${currentUser.id.slice(-6).toUpperCase()}`}
                 </code>
               </div>
               <button
@@ -1365,7 +1366,7 @@ export default function App() {
                 </span>
                 <div className="flex items-center justify-between gap-2">
                   <code className="text-sm font-mono font-bold text-[var(--neu-accent)]">
-                    {currentUser.partnerCode || `AMOUR-${currentUser.id.slice(-6).toUpperCase()}`}
+                    {currentUser.partnerCode || `HONEY-${currentUser.id.slice(-6).toUpperCase()}`}
                   </code>
                   <button
                     onClick={handleCopyCode}
@@ -1450,7 +1451,7 @@ export default function App() {
               id: 'unpaired',
               name: 'No Partner Connected',
               nickname: 'Partner',
-              avatar: '/src/assets/images/sophia_avatar_1793017722307.jpg',
+              avatar: defaultAvatar,
               isOnline: false,
               lastSeen: '',
               statusMessage: '',

@@ -1,0 +1,170 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile in Amour couple sanctuary",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique user ID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full display name",
+          "maxLength": 60
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address",
+          "format": "email"
+        },
+        "petName": {
+          "type": "string",
+          "description": "Sweetheart pet name",
+          "maxLength": 60
+        },
+        "avatar": {
+          "type": "string",
+          "description": "Avatar image URL or path"
+        },
+        "partnerCode": {
+          "type": "string",
+          "description": "Unique partner pairing code",
+          "maxLength": 32
+        },
+        "keyFingerprint": {
+          "type": "string",
+          "description": "E2EE security key fingerprint"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Creation timestamp in milliseconds"
+        }
+      },
+      "required": ["id", "name", "email", "partnerCode", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "End-to-end encrypted romantic message, photo, voice note, or sealed letter",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique message ID"
+        },
+        "senderId": {
+          "type": "string",
+          "description": "Sender user ID"
+        },
+        "receiverId": {
+          "type": "string",
+          "description": "Receiver partner user ID"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["text", "image", "voice", "sealed_letter", "sticker"],
+          "description": "Type of message"
+        },
+        "content": {
+          "type": "string",
+          "description": "Message plaintext or descriptor",
+          "maxLength": 4000
+        },
+        "encryptedPayload": {
+          "type": "object",
+          "description": "AES-256 encrypted payload details"
+        },
+        "mediaUrl": {
+          "type": "string",
+          "description": "Media data URL or audio link"
+        },
+        "mediaDuration": {
+          "type": "number",
+          "description": "Audio duration in seconds"
+        },
+        "stickerId": {
+          "type": "string",
+          "description": "Sticker identifier"
+        },
+        "letterMeta": {
+          "type": "object",
+          "description": "Metadata for sealed letters"
+        },
+        "reactions": {
+          "type": "array",
+          "description": "List of emoji reactions"
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Message creation timestamp in milliseconds"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["sending", "sent", "delivered", "read"],
+          "description": "Delivery status"
+        }
+      },
+      "required": ["id", "senderId", "receiverId", "type", "timestamp"]
+    },
+    "Pairing": {
+      "title": "Pairing",
+      "description": "Public pairing code record for partner lookup",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Uppercase pairing code",
+          "maxLength": 32
+        },
+        "userId": {
+          "type": "string",
+          "description": "Associated user ID"
+        },
+        "userName": {
+          "type": "string",
+          "description": "User name"
+        },
+        "userAvatar": {
+          "type": "string",
+          "description": "User avatar URL"
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "petName": {
+          "type": "string",
+          "description": "Sweetheart pet name"
+        },
+        "keyFingerprint": {
+          "type": "string",
+          "description": "E2EE fingerprint"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Last updated timestamp"
+        }
+      },
+      "required": ["code", "userId", "userName", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "Individual user accounts and profile details"
+    },
+    "/messages/{messageId}": {
+      "schema": { "$ref": "Message" },
+      "description": "Direct encrypted messages between partners"
+    },
+    "/pairings/{partnerCode}": {
+      "schema": { "$ref": "Pairing" },
+      "description": "Pairing codes lookup for direct partner discovery"
+    },
+    "/typing/{typingId}": {
+      "schema": { "$ref": "User" },
+      "description": "Transient typing indicator status between partners"
+    }
+  }
+}

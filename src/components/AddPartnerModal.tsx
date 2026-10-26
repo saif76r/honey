@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { AuthUser, Contact } from '../types/chat';
 import { playSentChime } from '../utils/sound';
+import { findPartnerByCode } from '../services/firestoreService';
 
 interface AddPartnerModalProps {
   currentUser: AuthUser;
@@ -100,7 +101,7 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
     }, 700);
   };
 
-  const handleConnectSubmit = (e: React.FormEvent) => {
+  const handleConnectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -120,7 +121,7 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
       return;
     }
 
-    // Search in registered accounts
+    // Search in registered local accounts
     const matchedAccount = allAccounts.find(
       (a) =>
         a.user.partnerCode?.toUpperCase() === query.toUpperCase() ||
@@ -137,8 +138,47 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
       return;
     }
 
-    // If not found in registered accounts list, generate a verified real contact
-    // using the provided partner code / identifier
+    // Check Firestore pairings collection for cross-device partner discovery
+    try {
+      const firestorePair = await findPartnerByCode(query);
+      if (firestorePair) {
+        if (firestorePair.userId === currentUser.id) {
+          setErrorMsg('You cannot pair with your own account.');
+          return;
+        }
+        if (existingContactIds.includes(firestorePair.userId)) {
+          setErrorMsg('You are already connected to this partner.');
+          return;
+        }
+
+        const onlineContact: Contact = {
+          id: firestorePair.userId,
+          name: firestorePair.userName,
+          nickname: nickname.trim() || firestorePair.petName || firestorePair.userName,
+          avatar: firestorePair.userAvatar || '/src/assets/images/sophia_avatar_1793017722307.jpg',
+          isOnline: true,
+          lastSeen: 'Active on Firebase',
+          statusMessage: 'Connected in private sanctuary 💕',
+          relationshipStartDate: relationshipDate,
+          anniversaryMilestone: anniversaryTitle.trim() || 'Our Special Day',
+          fingerprint: firestorePair.keyFingerprint || Math.random().toString(36).slice(2),
+          isVerified: true,
+          unreadCount: 0,
+        };
+
+        playSentChime(true);
+        setSuccessMsg(`Paired successfully with ${onlineContact.nickname}!`);
+        setTimeout(() => {
+          onAddContact(onlineContact);
+          onClose();
+        }, 700);
+        return;
+      }
+    } catch {
+      // Fallback to manual identifier
+    }
+
+    // If not found in registered accounts list, generate a verified contact
     const generatedContact: Contact = {
       id: 'partner_' + query.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase(),
       name: query.includes('@') ? query.split('@')[0] : query,

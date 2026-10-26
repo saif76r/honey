@@ -14,6 +14,7 @@ import {
 import { AuthUser, ThemePreset } from '../types/chat';
 import { THEMES } from '../utils/themes';
 import { playSentChime } from '../utils/sound';
+import { syncUserToFirestore } from '../services/firestoreService';
 
 interface AuthPageProps {
   onLoginSuccess: (user: AuthUser) => void;
@@ -102,6 +103,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         return;
       }
 
+      syncUserToFirestore(matched.user).catch((e) => console.warn('Firestore sync notice:', e));
       onLoginSuccess(matched.user);
     }, 600);
   };
@@ -151,6 +153,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         passphraseHash: passwordTrimmed,
       });
 
+      syncUserToFirestore(newUser).catch((e) => console.warn('Firestore sync notice:', e));
       onLoginSuccess(newUser);
     }, 800);
   };

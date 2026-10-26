@@ -46,6 +46,15 @@ import { ChatMessageItem } from './components/ChatMessageItem';
 import { PushNotificationToast } from './components/PushNotificationToast';
 import { AuthPage } from './components/AuthPage';
 import { AddPartnerModal } from './components/AddPartnerModal';
+import { testFirestoreConnection } from './firebase';
+import {
+  sendFirestoreMessage,
+  updateFirestoreMessage,
+  subscribeToIncomingMessages,
+  setFirestoreTyping,
+  subscribeToPartnerTyping,
+  syncUserToFirestore,
+} from './services/firestoreService';
 
 export default function App() {
   // Application Settings
@@ -274,6 +283,49 @@ export default function App() {
     return () => unsubscribe();
   }, [currentUser, settings.soundEffects, contacts]);
 
+  // Validate connection to Firestore on boot
+  useEffect(() => {
+    testFirestoreConnection().catch((err) => console.warn('Firestore test connection:', err));
+  }, []);
+
+  // Sync current user to Firestore
+  useEffect(() => {
+    if (currentUser) {
+      syncUserToFirestore(currentUser).catch((err) => console.warn('Sync user error:', err));
+    }
+  }, [currentUser]);
+
+  // Firestore real-time incoming messages subscriber
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsubscribe = subscribeToIncomingMessages(currentUser.id, (incomingMsg) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === incomingMsg.id)) {
+          return prev.map((m) => (m.id === incomingMsg.id ? incomingMsg : m));
+        }
+        playReceivedChime(settings.soundEffects);
+        const sender = contacts.find((c) => c.id === incomingMsg.senderId);
+        showPushNotification(
+          sender?.nickname || sender?.name || 'Your Partner',
+          incomingMsg.content
+        );
+        return [...prev, incomingMsg];
+      });
+    });
+
+    return () => unsubscribe();
+  }, [currentUser, settings.soundEffects, contacts]);
+
+  // Firestore real-time typing status subscriber
+  useEffect(() => {
+    if (!currentUser || !activeContact) return;
+    const unsubscribe = subscribeToPartnerTyping(activeContact.id, currentUser.id, (isTyping) => {
+      setIsPartnerTyping(isTyping);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser, activeContact]);
+
   const handleLoginSuccess = (user: AuthUser) => {
     setCurrentUser(user);
     localStorage.setItem('amour_auth_user_v1', JSON.stringify(user));
@@ -405,6 +457,9 @@ export default function App() {
       senderId: myId,
       isTyping: true,
     });
+    if (currentUser && activeContact) {
+      setFirestoreTyping(currentUser.id, activeContact.id, true).catch(() => {});
+    }
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = window.setTimeout(() => {
@@ -413,10 +468,13 @@ export default function App() {
         senderId: myId,
         isTyping: false,
       });
+      if (currentUser && activeContact) {
+        setFirestoreTyping(currentUser.id, activeContact.id, false).catch(() => {});
+      }
     }, 2000);
   };
 
-  // Sending Messages (100% Real - No Bot Replies)
+  // Sending Messages (100% Real - Synced to Firestore)
   const handleSendMessage = async () => {
     if (!inputText.trim() || !currentUser || !activeContact) return;
     const textToSend = inputText.trim();
@@ -451,6 +509,7 @@ export default function App() {
     setReplyingTo(null);
     playSentChime(settings.soundEffects);
     broadcastChatEvent({ type: 'NEW_MESSAGE', message: newMsg });
+    sendFirestoreMessage(newMsg).catch((e) => console.warn('Firestore message save notice:', e));
     scrollToBottom('smooth');
   };
 
@@ -478,6 +537,7 @@ export default function App() {
     setMessages((prev) => [...prev, newMsg]);
     playSentChime(settings.soundEffects);
     broadcastChatEvent({ type: 'NEW_MESSAGE', message: newMsg });
+    sendFirestoreMessage(newMsg).catch((e) => console.warn('Firestore voice save notice:', e));
   };
 
   // Sealed Letter send
@@ -506,6 +566,7 @@ export default function App() {
     setMessages((prev) => [...prev, newMsg]);
     playSentChime(settings.soundEffects);
     broadcastChatEvent({ type: 'NEW_MESSAGE', message: newMsg });
+    sendFirestoreMessage(newMsg).catch((e) => console.warn('Firestore letter save notice:', e));
   };
 
   // Photo / Media send
@@ -546,6 +607,7 @@ export default function App() {
     setDraftMediaUrl(null);
     playSentChime(settings.soundEffects);
     broadcastChatEvent({ type: 'NEW_MESSAGE', message: newMsg });
+    sendFirestoreMessage(newMsg).catch((e) => console.warn('Firestore photo save notice:', e));
   };
 
   // Sticker send
@@ -570,6 +632,7 @@ export default function App() {
     setMessages((prev) => [...prev, newMsg]);
     playSentChime(settings.soundEffects);
     broadcastChatEvent({ type: 'NEW_MESSAGE', message: newMsg });
+    sendFirestoreMessage(newMsg).catch((e) => console.warn('Firestore sticker save notice:', e));
   };
 
   // Quick Emoji reaction / send
@@ -581,6 +644,7 @@ export default function App() {
   const handleReactToMessage = (messageId: string, emoji: string) => {
     if (!currentUser) return;
     playHeartReactionSound(settings.soundEffects);
+    let updatedReactionsList: Message['reactions'] = [];
     setMessages((prev) =>
       prev.map((m) => {
         if (m.id === messageId) {
@@ -599,6 +663,7 @@ export default function App() {
               timestamp: Date.now(),
             });
           }
+          updatedReactionsList = updated;
           return { ...m, reactions: updated };
         }
         return m;
@@ -611,6 +676,9 @@ export default function App() {
       emoji,
       senderId: currentUser.id,
     });
+    updateFirestoreMessage(messageId, { reactions: updatedReactionsList }).catch((e) =>
+      console.warn('Firestore reaction notice:', e)
+    );
   };
 
   // Heart burst action from Love Counter

@@ -100,10 +100,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     const matched = accounts.find((a) => a.user.email.toLowerCase() === emailTrimmed);
 
     if (matched && matched.passphraseHash === passwordTrimmed) {
+      saveAccountToCloud(matched.user, passwordTrimmed).catch(() => {});
       setIsLoading(false);
       onLoginSuccess(matched.user);
       return;
     }
+
 
     // 2. Query Firestore Cloud accounts (cross-device login between PC & Phone)
     try {
@@ -308,7 +310,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 rounded-2xl neu-button text-xs font-bold text-white bg-[var(--neu-accent)] flex items-center justify-center gap-2 hover:opacity-95 transition-all shadow-md mt-2 disabled:opacity-50"
+              className="w-full py-3 rounded-2xl neu-button-primary text-xs font-bold flex items-center justify-center gap-2 transition-all mt-2 disabled:opacity-50 cursor-pointer"
             >
               {isLoading ? (
                 <span>Unlocking E2EE Sanctuary...</span>
@@ -422,7 +424,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 rounded-2xl neu-button text-xs font-bold text-white bg-[var(--neu-accent)] flex items-center justify-center gap-2 hover:opacity-95 transition-all shadow-md mt-2 disabled:opacity-50"
+              className="w-full py-3 rounded-2xl neu-button-primary text-xs font-bold flex items-center justify-center gap-2 transition-all mt-2 disabled:opacity-50 cursor-pointer"
             >
               {isLoading ? (
                 <span>Deriving 256-bit AES Keys...</span>

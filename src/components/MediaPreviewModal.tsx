@@ -85,7 +85,7 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
                 </button>
                 <button
                   onClick={handleSend}
-                  className="px-5 py-2 rounded-xl neu-button text-xs font-bold text-white bg-[var(--neu-accent)] flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl neu-button-primary text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>Send Encrypted Photo</span>

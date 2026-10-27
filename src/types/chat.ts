@@ -51,6 +51,8 @@ export interface Contact {
   id: string;
   name: string;
   nickname: string;
+  email?: string;
+  partnerCode?: string;
   avatar: string;
   isOnline: boolean;
   lastSeen: string;
@@ -61,6 +63,7 @@ export interface Contact {
   isVerified: boolean;
   unreadCount: number;
 }
+
 
 export type ThemePreset = 'rose' | 'lavender' | 'peach' | 'mint' | 'twilight';
 

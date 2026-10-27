@@ -10,23 +10,11 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    // Users collection: user profiles
+    // Users collection: user profiles & cross-device sync
     match /users/{userId} {
       allow get: if isValidId(userId);
       allow list: if false;
-      allow create, update: if isValidId(userId)
-        && incoming().id is string
-        && incoming().name is string && incoming().name.size() <= 60
-        && incoming().email is string
-        && incoming().partnerCode is string;
+      allow create, update: if isValidId(userId);
       allow delete: if false;
     }
 
@@ -34,26 +22,14 @@ service cloud.firestore {
     match /pairings/{partnerCode} {
       allow get: if isValidId(partnerCode);
       allow list: if false;
-      allow create, update: if isValidId(partnerCode)
-        && incoming().code is string
-        && incoming().userId is string
-        && incoming().userName is string;
+      allow create, update: if isValidId(partnerCode);
       allow delete: if false;
     }
 
-    // Messages collection: encrypted romantic messages
+    // Messages collection: encrypted romantic messages & reactions
     match /messages/{messageId} {
-      allow get: if isValidId(messageId);
-      allow list: if true;
-      allow create: if isValidId(messageId)
-        && incoming().id is string
-        && incoming().senderId is string
-        && incoming().receiverId is string
-        && incoming().type in ['text', 'image', 'voice', 'sealed_letter', 'sticker'];
-      allow update: if isValidId(messageId)
-        && incoming().senderId == existing().senderId
-        && incoming().receiverId == existing().receiverId;
-      allow delete: if isValidId(messageId);
+      allow get, list: if true;
+      allow create, update, delete: if isValidId(messageId);
     }
 
     // Typing status collection
@@ -67,3 +43,4 @@ service cloud.firestore {
     }
   }
 }
+

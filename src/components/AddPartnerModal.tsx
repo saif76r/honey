@@ -149,7 +149,10 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
     try {
       const firestorePair = await findPartner(query);
       if (firestorePair) {
-        if (firestorePair.userId === currentUser.id || firestorePair.userEmail.toLowerCase() === currentUser.email.toLowerCase()) {
+        if (
+          firestorePair.userId === currentUser.id ||
+          firestorePair.userEmail.toLowerCase() === currentUser.email.toLowerCase()
+        ) {
           setErrorMsg('You cannot pair with your own account.');
           return;
         }
@@ -190,32 +193,42 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
       console.warn('Partner search notice:', err);
     }
 
-    // 3. Fallback: If query looks like an email or code, create contact with deterministic user ID so messages route properly
-    const resolvedId = query.includes('@') ? emailToUserId(query) : 'partner_' + query.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-    const generatedContact: Contact = {
-      id: resolvedId,
-      name: query.includes('@') ? query.split('@')[0] : query,
-      nickname: nickname.trim() || (query.includes('@') ? query.split('@')[0] : query),
-      avatar: defaultAvatar,
-      isOnline: true,
-      lastSeen: 'Active now',
-      statusMessage: 'Encrypted partner connected 💍',
-      relationshipStartDate: relationshipDate,
-      anniversaryMilestone: anniversaryTitle.trim() || 'Our Special Day',
-      fingerprint: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2),
-      isVerified: true,
-      unreadCount: 0,
-    };
+    // 3. If query has '@', allow connecting with partner's email directly via deterministic ID
+    if (query.includes('@')) {
+      const resolvedId = emailToUserId(query);
+      if (existingContactIds.includes(resolvedId)) {
+        setErrorMsg('You are already connected to this partner.');
+        return;
+      }
+      const emailContact: Contact = {
+        id: resolvedId,
+        name: query.split('@')[0],
+        nickname: nickname.trim() || query.split('@')[0],
+        avatar: defaultAvatar,
+        isOnline: true,
+        lastSeen: 'Connected via Email',
+        statusMessage: 'Private couple chat connected 💕',
+        relationshipStartDate: relationshipDate,
+        anniversaryMilestone: anniversaryTitle.trim() || 'Our Special Day',
+        fingerprint: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2),
+        isVerified: true,
+        unreadCount: 0,
+      };
 
-    linkPartnersInCloud(currentUser, generatedContact).catch(() => {});
+      linkPartnersInCloud(currentUser, emailContact).catch(() => {});
+      playSentChime(true);
+      setSuccessMsg(`Paired successfully with ${emailContact.nickname}!`);
+      setTimeout(() => {
+        onAddContact(emailContact);
+        onClose();
+      }, 700);
+      return;
+    }
 
-    playSentChime(true);
-    setSuccessMsg(`Paired successfully with ${generatedContact.nickname}!`);
-    setTimeout(() => {
-      onAddContact(generatedContact);
-      onClose();
-    }, 700);
+    // If code was not found and query is not an email, do NOT create a fake unrouteable partner ID
+    setErrorMsg('Partner code not found. Please double-check your partner\'s code (e.g. HONEY-PTEPI) or enter their registered email address.');
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
@@ -344,7 +357,7 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
 
           <button
             type="submit"
-            className="w-full py-2.5 rounded-xl neu-button text-xs font-bold text-[var(--neu-accent)] flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-all"
+            className="w-full py-3 rounded-2xl neu-button-primary text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
           >
             <Heart className="w-4 h-4 fill-[var(--neu-accent)]/20" />
             <span>Connect & Begin Private Chat</span>

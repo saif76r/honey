@@ -56,7 +56,9 @@ import {
   syncUserToFirestore,
   fetchUserContactsFromCloud,
   saveUserContactsToCloud,
+  emailToUserId,
 } from './services/firestoreService';
+
 import { doc, getDoc } from 'firebase/firestore';
 import defaultAvatar from './assets/images/sophia_avatar_1793017722307.jpg';
 
@@ -186,6 +188,9 @@ export default function App() {
   const [showScrollBottomPill, setShowScrollBottomPill] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const typingTimeoutRef = useRef<number | null>(null);
+  const contactsRef = useRef(contacts);
+  contactsRef.current = contacts;
+
 
   // Apply theme CSS variables to body root
   useEffect(() => {
@@ -297,19 +302,52 @@ export default function App() {
     if (!currentUser) return;
     syncUserToFirestore(currentUser).catch((err) => console.warn('Sync user error:', err));
 
+    // Also sync master passphrase from local accounts if exists
+    try {
+      const raw = localStorage.getItem('amour_registered_accounts_v1');
+      if (raw) {
+        const accs = JSON.parse(raw);
+        const match = accs.find((a: any) => a.user?.email?.toLowerCase() === currentUser.email?.toLowerCase());
+        if (match?.passphraseHash) {
+          syncUserToFirestore({ ...currentUser, partnerCode: currentUser.partnerCode });
+        }
+      }
+    } catch {}
+
     // Load cloud-saved contacts so Phone gets PC's paired partners automatically
-    fetchUserContactsFromCloud(currentUser.id).then((cloudContacts) => {
+    fetchUserContactsFromCloud(currentUser.id, currentUser.email).then((cloudContacts) => {
       if (cloudContacts && cloudContacts.length > 0) {
+        // Clean any broken partner_ IDs
+        const sanitized = cloudContacts.map((c) => {
+          if (c.id === 'partner_honey_pte__' || c.id.includes('pte')) {
+            return {
+              ...c,
+              id: 'user_mvpczus4_zh48',
+              name: 'Abha',
+              nickname: 'Abha',
+              avatar: defaultAvatar,
+            };
+          }
+          return c;
+        }).filter((c) => !c.id.startsWith('partner_') || c.id === 'user_mvpczus4_zh48');
+
         setContacts((prev) => {
-          const merged = [...cloudContacts];
+          const merged = [...sanitized];
           prev.forEach((loc) => {
+            if (loc.id === 'partner_honey_pte__' || loc.id.startsWith('partner_')) return;
             if (!merged.some((m) => m.id === loc.id)) {
               merged.push(loc);
             }
           });
           return merged;
         });
-        setActiveContactId((prevId) => prevId || cloudContacts[0].id);
+
+        setActiveContactId((prevId) => {
+          if (!prevId || prevId.startsWith('partner_')) {
+            return sanitized[0]?.id || '';
+          }
+          return prevId;
+        });
       }
     }).catch((e) => console.warn('Cloud contacts fetch notice:', e));
   }, [currentUser]);
@@ -317,37 +355,39 @@ export default function App() {
   // Sync contacts back to cloud when updated
   useEffect(() => {
     if (currentUser && contacts.length > 0) {
-      saveUserContactsToCloud(currentUser.id, contacts).catch(() => {});
+      saveUserContactsToCloud(currentUser.id, contacts, currentUser.email).catch(() => {});
     }
   }, [currentUser, contacts]);
 
   // Firestore real-time messages subscriber (both incoming from partner & outgoing across devices)
   useEffect(() => {
     if (!currentUser) return;
-    const unsubscribe = subscribeToUserMessages(currentUser.id, (msg) => {
+    const unsubscribe = subscribeToUserMessages(currentUser.id, currentUser.email, (msg) => {
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) {
           return prev.map((m) => (m.id === msg.id ? msg : m));
         }
 
         // If received from partner
-        if (msg.senderId !== currentUser.id) {
+        const isFromMe = msg.senderId === currentUser.id || msg.senderId === emailToUserId(currentUser.email);
+        if (!isFromMe) {
           playReceivedChime(settings.soundEffects);
-          const sender = contacts.find((c) => c.id === msg.senderId);
+          const currentContacts = contactsRef.current;
+          const sender = currentContacts.find((c) => c.id === msg.senderId);
           showPushNotification(
             sender?.nickname || sender?.name || 'Your Partner',
             msg.content
           );
 
           // If sender is not yet in contacts on this device, automatically discover & link!
-          if (!contacts.some((c) => c.id === msg.senderId)) {
+          if (!currentContacts.some((c) => c.id === msg.senderId)) {
             getDoc(doc(db, 'users', msg.senderId)).then((snap) => {
               if (snap.exists()) {
                 const sData = snap.data();
                 const newPartner: Contact = {
-                  id: sData.id,
-                  name: sData.name,
-                  nickname: sData.petName || sData.name,
+                  id: sData.id || msg.senderId,
+                  name: sData.name || 'Partner',
+                  nickname: sData.petName || sData.name || 'My Soulmate 💕',
                   avatar: sData.avatar || defaultAvatar,
                   isOnline: true,
                   lastSeen: 'Active now',
@@ -358,8 +398,11 @@ export default function App() {
                   isVerified: true,
                   unreadCount: 1,
                 };
-                setContacts((p) => [newPartner, ...p.filter((c) => c.id !== newPartner.id)]);
-                setActiveContactId((cur) => cur || newPartner.id);
+                setContacts((p) => {
+                  const cleaned = p.filter((c) => c.id !== newPartner.id && !c.id.startsWith('partner_'));
+                  return [newPartner, ...cleaned];
+                });
+                setActiveContactId((cur) => (!cur || cur.startsWith('partner_') ? newPartner.id : cur));
               }
             }).catch(() => {});
           }
@@ -370,7 +413,8 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [currentUser, settings.soundEffects, contacts]);
+  }, [currentUser, settings.soundEffects]);
+
 
   // Firestore real-time typing status subscriber
   useEffect(() => {
@@ -797,12 +841,52 @@ export default function App() {
 
   // Filter messages for current real 1-on-1 pairing
   const currentConversationMessages = activeContact
-    ? messages.filter(
-        (m) =>
+    ? messages.filter((m) => {
+        // Direct ID match
+        if (
           (m.senderId === currentUser.id && m.receiverId === activeContact.id) ||
           (m.senderId === activeContact.id && m.receiverId === currentUser.id)
-      )
+        ) {
+          return true;
+        }
+
+        // Email-based or legacy ID match
+        const myEmailId = emailToUserId(currentUser.email);
+        const partnerEmailId = activeContact.email ? emailToUserId(activeContact.email) : '';
+        if (
+          (m.senderId === myEmailId && m.receiverId === activeContact.id) ||
+          (m.senderId === currentUser.id && partnerEmailId && m.receiverId === partnerEmailId) ||
+          (m.senderId === activeContact.id && m.receiverId === myEmailId) ||
+          (partnerEmailId && m.senderId === partnerEmailId && m.receiverId === currentUser.id)
+        ) {
+          return true;
+        }
+
+        // Support for previous messages involving Abha / partner_honey_pte__
+        if (
+          (activeContact.id === 'user_mvpczus4_zh48' || activeContact.name === 'Abha') &&
+          ((m.senderId === currentUser.id && m.receiverId.includes('pte')) ||
+           (m.receiverId === currentUser.id && m.senderId.includes('pte')))
+        ) {
+          return true;
+        }
+
+        // If only 1 partner contact in list, show all messages between user and partner
+        if (contacts.length <= 1) {
+          if (
+            m.senderId === currentUser.id ||
+            m.receiverId === currentUser.id ||
+            m.senderId === myEmailId ||
+            m.receiverId === myEmailId
+          ) {
+            return true;
+          }
+        }
+
+        return false;
+      })
     : [];
+
 
   return (
     <div className="h-[100dvh] max-h-[100dvh] w-full bg-[var(--neu-bg)] text-[var(--neu-text-primary)] flex flex-col relative overflow-hidden">
@@ -1382,7 +1466,7 @@ export default function App() {
                     <button
                       onClick={handleSendMessage}
                       disabled={!inputText.trim()}
-                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl neu-button flex items-center justify-center text-white bg-[var(--neu-accent)] disabled:opacity-40 disabled:pointer-events-none hover:scale-105 transition-all shadow-md shrink-0"
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl neu-button-primary flex items-center justify-center disabled:opacity-40 disabled:pointer-events-none hover:scale-105 transition-all shrink-0 cursor-pointer"
                       title="Send encrypted message"
                     >
                       <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />

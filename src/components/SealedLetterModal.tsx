@@ -141,7 +141,7 @@ export const SealedLetterModal: React.FC<SealedLetterModalProps> = ({
                 <button
                   onClick={handleSend}
                   disabled={!newBody.trim()}
-                  className="px-5 py-2.5 rounded-2xl neu-button text-xs font-bold text-white bg-[var(--neu-accent)] disabled:opacity-50 hover:opacity-95"
+                  className="px-5 py-2.5 rounded-2xl neu-button-primary text-xs font-bold disabled:opacity-50 cursor-pointer"
                 >
                   Stamp & Seal Letter 💌
                 </button>

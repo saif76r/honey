@@ -142,7 +142,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSendVoice, onCan
         ) : (
           <button
             onClick={handleSend}
-            className="px-3.5 py-1.5 rounded-xl neu-button flex items-center gap-1.5 text-xs font-bold text-white bg-[var(--neu-accent)] hover:opacity-95"
+            className="px-3.5 py-1.5 rounded-xl neu-button-primary flex items-center gap-1.5 text-xs font-bold cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Send Note</span>

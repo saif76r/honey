@@ -14,7 +14,11 @@ import {
 import { AuthUser, ThemePreset } from '../types/chat';
 import { THEMES } from '../utils/themes';
 import { playSentChime } from '../utils/sound';
-import { syncUserToFirestore } from '../services/firestoreService';
+import {
+  saveAccountToCloud,
+  verifyCloudAccount,
+  emailToUserId,
+} from '../services/firestoreService';
 import alexAvatar from '../assets/images/alex_avatar_1793017722479.jpg';
 import sophiaAvatar from '../assets/images/sophia_avatar_1793017722307.jpg';
 import sunsetMemory from '../assets/images/romantic_sunset_memory_1793017722778.jpg';
@@ -76,7 +80,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [regPassword, setRegPassword] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(PRESET_AVATARS[0].url);
 
-  const handleLogin = (e?: React.FormEvent) => {
+  const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMessage('');
 
@@ -91,27 +95,38 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setIsLoading(true);
     playSentChime(true);
 
-    setTimeout(() => {
+    // 1. Check local device accounts first
+    const accounts = getStoredAccounts();
+    const matched = accounts.find((a) => a.user.email.toLowerCase() === emailTrimmed);
+
+    if (matched && matched.passphraseHash === passwordTrimmed) {
       setIsLoading(false);
-      const accounts = getStoredAccounts();
-      const matched = accounts.find((a) => a.user.email.toLowerCase() === emailTrimmed);
-
-      if (!matched) {
-        setErrorMessage('No account found with this email. Please create your account first.');
-        return;
-      }
-
-      if (matched.passphraseHash !== passwordTrimmed) {
-        setErrorMessage('Incorrect master passphrase. Please try again.');
-        return;
-      }
-
-      syncUserToFirestore(matched.user).catch((e) => console.warn('Firestore sync notice:', e));
       onLoginSuccess(matched.user);
-    }, 600);
+      return;
+    }
+
+    // 2. Query Firestore Cloud accounts (cross-device login between PC & Phone)
+    try {
+      const cloudRes = await verifyCloudAccount(emailTrimmed, passwordTrimmed);
+      setIsLoading(false);
+
+      if (cloudRes.success && cloudRes.user) {
+        // Cache account on this device for seamless future access
+        saveAccount({
+          user: cloudRes.user,
+          passphraseHash: passwordTrimmed,
+        });
+        onLoginSuccess(cloudRes.user);
+      } else {
+        setErrorMessage(cloudRes.error || 'Incorrect email or passphrase.');
+      }
+    } catch {
+      setIsLoading(false);
+      setErrorMessage('Connection failed. Please check your internet connection.');
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -131,34 +146,47 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
     const accounts = getStoredAccounts();
     if (accounts.some((a) => a.user.email.toLowerCase() === emailTrimmed)) {
-      setErrorMessage('An account with this email already exists. Please sign in instead.');
+      setErrorMessage('An account with this email already exists on this device. Please sign in instead.');
       return;
     }
 
     setIsLoading(true);
     playSentChime(true);
 
-    setTimeout(() => {
-      setIsLoading(false);
-      const newUser: AuthUser = {
-        id: 'user_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
-        name: nameTrimmed,
-        email: emailTrimmed,
-        petName: regPetName.trim() || 'My Soulmate 💕',
-        avatar: selectedAvatar,
-        keyFingerprint: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2),
-        partnerCode: 'HONEY-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
-        createdAt: Date.now(),
-      };
+    const deterministicId = emailToUserId(emailTrimmed);
+    const codeSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const newUser: AuthUser = {
+      id: deterministicId,
+      name: nameTrimmed,
+      email: emailTrimmed,
+      petName: regPetName.trim() || 'My Soulmate 💕',
+      avatar: selectedAvatar,
+      keyFingerprint: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2),
+      partnerCode: `HONEY-${codeSuffix}`,
+      createdAt: Date.now(),
+    };
 
+    try {
+      // Save to cloud Firestore so user can log in on PC, Phone, etc.
+      await saveAccountToCloud(newUser, passwordTrimmed);
+
+      // Cache locally
       saveAccount({
         user: newUser,
         passphraseHash: passwordTrimmed,
       });
 
-      syncUserToFirestore(newUser).catch((e) => console.warn('Firestore sync notice:', e));
+      setIsLoading(false);
       onLoginSuccess(newUser);
-    }, 800);
+    } catch (err) {
+      console.warn('Cloud register error, continuing with local cache:', err);
+      saveAccount({
+        user: newUser,
+        passphraseHash: passwordTrimmed,
+      });
+      setIsLoading(false);
+      onLoginSuccess(newUser);
+    }
   };
 
   return (

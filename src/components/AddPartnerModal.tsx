@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { AuthUser, Contact } from '../types/chat';
 import { playSentChime } from '../utils/sound';
-import { findPartnerByCode } from '../services/firestoreService';
+import { findPartner, linkPartnersInCloud, emailToUserId } from '../services/firestoreService';
 import defaultAvatar from '../assets/images/sophia_avatar_1793017722307.jpg';
 
 interface AddPartnerModalProps {
@@ -94,6 +94,11 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
       unreadCount: 0,
     };
 
+    // Save mutual link in Firestore so partner automatically sees me
+    linkPartnersInCloud(currentUser, newContact).catch((e) =>
+      console.warn('Mutual link notice:', e)
+    );
+
     playSentChime(true);
     setSuccessMsg(`Successfully paired with ${partnerUser.name}!`);
     setTimeout(() => {
@@ -116,13 +121,14 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
     // Check if entered user's own details
     if (
       query.toUpperCase() === currentUser.partnerCode?.toUpperCase() ||
-      query.toLowerCase() === currentUser.email.toLowerCase()
+      query.toLowerCase() === currentUser.email.toLowerCase() ||
+      query === currentUser.id
     ) {
       setErrorMsg('You cannot pair with your own account. Share your code with your partner!');
       return;
     }
 
-    // Search in registered local accounts
+    // 1. Search in local accounts
     const matchedAccount = allAccounts.find(
       (a) =>
         a.user.partnerCode?.toUpperCase() === query.toUpperCase() ||
@@ -139,11 +145,11 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
       return;
     }
 
-    // Check Firestore pairings collection for cross-device partner discovery
+    // 2. Query Firestore pairings & users (cross-device discovery by code or email)
     try {
-      const firestorePair = await findPartnerByCode(query);
+      const firestorePair = await findPartner(query);
       if (firestorePair) {
-        if (firestorePair.userId === currentUser.id) {
+        if (firestorePair.userId === currentUser.id || firestorePair.userEmail.toLowerCase() === currentUser.email.toLowerCase()) {
           setErrorMsg('You cannot pair with your own account.');
           return;
         }
@@ -158,7 +164,7 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
           nickname: nickname.trim() || firestorePair.petName || firestorePair.userName,
           avatar: firestorePair.userAvatar || defaultAvatar,
           isOnline: true,
-          lastSeen: 'Active on Firebase',
+          lastSeen: 'Active on HoneyChat',
           statusMessage: 'Connected in private sanctuary 💕',
           relationshipStartDate: relationshipDate,
           anniversaryMilestone: anniversaryTitle.trim() || 'Our Special Day',
@@ -166,6 +172,11 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
           isVerified: true,
           unreadCount: 0,
         };
+
+        // Reciprocally save in cloud so partner immediately sees current user
+        linkPartnersInCloud(currentUser, onlineContact).catch((e) =>
+          console.warn('Mutual link notice:', e)
+        );
 
         playSentChime(true);
         setSuccessMsg(`Paired successfully with ${onlineContact.nickname}!`);
@@ -175,13 +186,14 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
         }, 700);
         return;
       }
-    } catch {
-      // Fallback to manual identifier
+    } catch (err) {
+      console.warn('Partner search notice:', err);
     }
 
-    // If not found in registered accounts list, generate a verified contact
+    // 3. Fallback: If query looks like an email or code, create contact with deterministic user ID so messages route properly
+    const resolvedId = query.includes('@') ? emailToUserId(query) : 'partner_' + query.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
     const generatedContact: Contact = {
-      id: 'partner_' + query.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase(),
+      id: resolvedId,
       name: query.includes('@') ? query.split('@')[0] : query,
       nickname: nickname.trim() || (query.includes('@') ? query.split('@')[0] : query),
       avatar: defaultAvatar,
@@ -194,6 +206,8 @@ export const AddPartnerModal: React.FC<AddPartnerModalProps> = ({
       isVerified: true,
       unreadCount: 0,
     };
+
+    linkPartnersInCloud(currentUser, generatedContact).catch(() => {});
 
     playSentChime(true);
     setSuccessMsg(`Paired successfully with ${generatedContact.nickname}!`);

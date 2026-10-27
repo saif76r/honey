@@ -46,15 +46,18 @@ import { ChatMessageItem } from './components/ChatMessageItem';
 import { PushNotificationToast } from './components/PushNotificationToast';
 import { AuthPage } from './components/AuthPage';
 import { AddPartnerModal } from './components/AddPartnerModal';
-import { testFirestoreConnection } from './firebase';
+import { testFirestoreConnection, db } from './firebase';
 import {
   sendFirestoreMessage,
   updateFirestoreMessage,
-  subscribeToIncomingMessages,
+  subscribeToUserMessages,
   setFirestoreTyping,
   subscribeToPartnerTyping,
   syncUserToFirestore,
+  fetchUserContactsFromCloud,
+  saveUserContactsToCloud,
 } from './services/firestoreService';
+import { doc, getDoc } from 'firebase/firestore';
 import defaultAvatar from './assets/images/sophia_avatar_1793017722307.jpg';
 
 export default function App() {
@@ -289,28 +292,80 @@ export default function App() {
     testFirestoreConnection().catch((err) => console.warn('Firestore test connection:', err));
   }, []);
 
-  // Sync current user to Firestore
-  useEffect(() => {
-    if (currentUser) {
-      syncUserToFirestore(currentUser).catch((err) => console.warn('Sync user error:', err));
-    }
-  }, [currentUser]);
-
-  // Firestore real-time incoming messages subscriber
+  // Sync current user and load contacts from Cloud Firestore
   useEffect(() => {
     if (!currentUser) return;
-    const unsubscribe = subscribeToIncomingMessages(currentUser.id, (incomingMsg) => {
+    syncUserToFirestore(currentUser).catch((err) => console.warn('Sync user error:', err));
+
+    // Load cloud-saved contacts so Phone gets PC's paired partners automatically
+    fetchUserContactsFromCloud(currentUser.id).then((cloudContacts) => {
+      if (cloudContacts && cloudContacts.length > 0) {
+        setContacts((prev) => {
+          const merged = [...cloudContacts];
+          prev.forEach((loc) => {
+            if (!merged.some((m) => m.id === loc.id)) {
+              merged.push(loc);
+            }
+          });
+          return merged;
+        });
+        setActiveContactId((prevId) => prevId || cloudContacts[0].id);
+      }
+    }).catch((e) => console.warn('Cloud contacts fetch notice:', e));
+  }, [currentUser]);
+
+  // Sync contacts back to cloud when updated
+  useEffect(() => {
+    if (currentUser && contacts.length > 0) {
+      saveUserContactsToCloud(currentUser.id, contacts).catch(() => {});
+    }
+  }, [currentUser, contacts]);
+
+  // Firestore real-time messages subscriber (both incoming from partner & outgoing across devices)
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsubscribe = subscribeToUserMessages(currentUser.id, (msg) => {
       setMessages((prev) => {
-        if (prev.some((m) => m.id === incomingMsg.id)) {
-          return prev.map((m) => (m.id === incomingMsg.id ? incomingMsg : m));
+        if (prev.some((m) => m.id === msg.id)) {
+          return prev.map((m) => (m.id === msg.id ? msg : m));
         }
-        playReceivedChime(settings.soundEffects);
-        const sender = contacts.find((c) => c.id === incomingMsg.senderId);
-        showPushNotification(
-          sender?.nickname || sender?.name || 'Your Partner',
-          incomingMsg.content
-        );
-        return [...prev, incomingMsg];
+
+        // If received from partner
+        if (msg.senderId !== currentUser.id) {
+          playReceivedChime(settings.soundEffects);
+          const sender = contacts.find((c) => c.id === msg.senderId);
+          showPushNotification(
+            sender?.nickname || sender?.name || 'Your Partner',
+            msg.content
+          );
+
+          // If sender is not yet in contacts on this device, automatically discover & link!
+          if (!contacts.some((c) => c.id === msg.senderId)) {
+            getDoc(doc(db, 'users', msg.senderId)).then((snap) => {
+              if (snap.exists()) {
+                const sData = snap.data();
+                const newPartner: Contact = {
+                  id: sData.id,
+                  name: sData.name,
+                  nickname: sData.petName || sData.name,
+                  avatar: sData.avatar || defaultAvatar,
+                  isOnline: true,
+                  lastSeen: 'Active now',
+                  statusMessage: 'Connected in private sanctuary 💕',
+                  relationshipStartDate: new Date().toISOString().split('T')[0],
+                  anniversaryMilestone: 'Our Special Day',
+                  fingerprint: sData.keyFingerprint || '',
+                  isVerified: true,
+                  unreadCount: 1,
+                };
+                setContacts((p) => [newPartner, ...p.filter((c) => c.id !== newPartner.id)]);
+                setActiveContactId((cur) => cur || newPartner.id);
+              }
+            }).catch(() => {});
+          }
+        }
+
+        return [...prev, msg];
       });
     });
 
